@@ -18,122 +18,107 @@ public class Database {
         return data;
     }
 
-    public void open(){
+    public void open() {
         try {
             List<String> lines = Files.readAllLines(path);
-            new ArrayList<>();
-            for (int i = 1; i <lines.size() ; i++) {
-                String line = lines.get(i);
-                String[]element = line.split(",");
-                String nim = element[0];
-                String nama = element[1];
-                String alamat = element[2];
-                int semester = Integer.parseInt(element[3]);
-                int sks = Integer.parseInt(element[4]);
-                double ipk = Double.parseDouble(element[5]);
-                Mahasiswa mhs = new Mahasiswa(nim, nama, alamat, semester, sks, ipk);
-                data.add(mhs);
+            data.clear(); // Pastikan data tidak menumpuk saat di-load ulang
 
+            for (int i = 1; i < lines.size(); i++) { // Mulai dari indeks 1, karena indeks 0 adalah header
+                String line = lines.get(i).trim();
+
+                if (!line.isEmpty()) { // Pastikan tidak ada baris kosong yang terbaca
+                    String[] element = line.split(";");
+
+                    if (element.length == 6) { // Pastikan format data sesuai
+                        String nim = element[0];
+                        String nama = element[1];
+                        String alamat = element[2];
+                        int semester = Integer.parseInt(element[3].trim());
+                        int sks = Integer.parseInt(element[4].trim());
+                        double ipk = Double.parseDouble(element[5].trim());
+
+                        Mahasiswa mhs = new Mahasiswa(nim, nama, alamat, semester, sks, ipk);
+                        data.add(mhs);
+                    } else {
+                        System.err.println("Format data salah pada baris: " + (i + 1));
+                    }
+                }
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.err.println("Gagal membaca file: " + e.getMessage());
         }
     }
-    public void save(){
+
+    public void save() {
         StringBuilder sb = new StringBuilder();
-        sb.append("NIM,NAMA,ALAMAT (KOTA),SEMESTER,SKS,IPK\n");
-        if (!data.isEmpty()) {
-            for (int i = 0; i < data.size(); i++) {
-                Mahasiswa mhs = data.get(i);
-                String line =mhs.getNim() + "," + mhs.getAlamat() + "," + mhs.getSemester() + "," + mhs.getSks() + "," + mhs.getIpk() + "\n";
-                sb.append(line);
+        sb.append("NIM;NAMA;ALAMAT (KOTA);SEMESTER;SKS;IPK\n"); // Sesuaikan header agar tetap rapi
 
-            }
-        }
-        try {
-            Files.writeString(path,sb.toString());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-    public void view(){
-        System.out.println("==================================================================================");
-        System.out.printf("| %-8.8s |", "NIM");
-        System.out.printf(" %-20.20s |", "NAMA");
-        System.out.printf(" %-20.20s |", "ALAMAT");
-        System.out.printf(" %8.8s |", "SEMESTER");
-        System.out.printf(" %3.3s |", "SKS");
-        System.out.printf(" %4.4s %n", "IPK");
-        System.out.println("----------------------------------------------------------------------------------");
         for (Mahasiswa mhs : data) {
-            System.out.printf("| %-8s |", mhs.getNim());
-            System.out.printf(" %-20.20s |", mhs.getNama());
-            System.out.printf(" %-20.20s |", mhs.getAlamat());
-            System.out.printf(" %8.8s |", mhs.getSemester());
-            System.out.printf(" %3.3s |", mhs.getSks());
-            System.out.printf(" %4.4s |", mhs.getIpk());
-            System.out.println();
+            String line = mhs.getNim() + ";" + mhs.getNama() + ";" + mhs.getAlamat() + ";"
+                    + mhs.getSemester() + ";" + mhs.getSks() + ";" + mhs.getIpk() + "\n";
+            sb.append(line);
         }
 
+        try {
+            Files.writeString(path, sb.toString());
+        } catch (IOException e) {
+            System.err.println("Gagal menyimpan file: " + e.getMessage());
+        }
+    }
+
+    public void view() {
+        System.out.println("==================================================================================");
+        System.out.printf("| %-8.8s | %-20.20s | %-20.20s | %8.8s | %3.3s | %4.4s |\n",
+                "NIM", "NAMA", "ALAMAT", "SEMESTER", "SKS", "IPK");
         System.out.println("----------------------------------------------------------------------------------");
 
+        for (Mahasiswa mhs : data) {
+            System.out.printf("| %-8s | %-20.20s | %-20.20s | %8d | %3d | %4.2f |\n",
+                    mhs.getNim(), mhs.getNama(), mhs.getAlamat(),
+                    mhs.getSemester(), mhs.getSks(), mhs.getIpk());
+        }
+        System.out.println("----------------------------------------------------------------------------------");
     }
 
-    boolean insert(String nim, String nama, String alamat, int semester, int sks, double ipk){
-        boolean status = true;
-        //cek primary key
-        if (!data.isEmpty()) {
-            for (int i = 0; i < data.size(); i++) {
-                if (data.get(i).getNim().equalsIgnoreCase(nim)) {
-                    status = false;
-                    break;
-
-                }
-
+    public boolean insert(String nim, String nama, String alamat, int semester, int sks, double ipk) {
+        for (Mahasiswa mhs : data) {
+            if (mhs.getNim().equalsIgnoreCase(nim)) {
+                System.out.println("Gagal: NIM " + nim + " sudah ada di database.");
+                return false;
             }
         }
-        if (status == true) {
-            Mahasiswa mhs = new Mahasiswa(nim, nama, alamat, semester, sks, ipk);
-            data.add(mhs);
-            save();
-        }
-        return status;
+
+        Mahasiswa newMhs = new Mahasiswa(nim, nama, alamat, semester, sks, ipk);
+        data.add(newMhs);
+        save();
+        return true;
     }
+
     public int search(String nim) {
-        int index = -1;
-        if (!data.isEmpty()) {
-            for (int i = 0; i < data.size(); i++) {
-                if (data.get(i).getNim().equalsIgnoreCase(nim)){
-                    index = i;
-                    break;
-                }
+        for (int i = 0; i < data.size(); i++) {
+            if (data.get(i).getNim().equalsIgnoreCase(nim)) {
+                return i;
             }
         }
-        return index;
+        return -1;
     }
 
-    public boolean update(int index, String nim, String nama, String alamat, int semester, int sks, int ipk) {
-        boolean status = false;
-        if (!data.isEmpty()) {
-            //update
-            if (index >= 0 && index < data.size()) {
-                Mahasiswa mhs = new Mahasiswa(nim, nama, alamat, semester, sks, ipk);
-                data.set(index, mhs);
-                save();
-                status = true;
-            }
+    public boolean update(int index, String nim, String nama, String alamat, int semester, int sks, double ipk) {
+        if (index >= 0 && index < data.size()) {
+            Mahasiswa mhs = new Mahasiswa(nim, nama, alamat, semester, sks, ipk);
+            data.set(index, mhs);
+            save();
+            return true;
         }
-        return status;
+        return false;
     }
 
     public boolean delete(int index) {
-        boolean status = false;
-        if(!data.isEmpty()) {
+        if (index >= 0 && index < data.size()) {
             data.remove(index);
             save();
-            status = true;
+            return true;
         }
-
-        return status;
+        return false;
     }
 }
